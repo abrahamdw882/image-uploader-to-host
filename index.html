@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Temporary Image Host</title>
+    <style>
+        .preview {
+            max-width: 300px;
+            margin: 10px 0;
+        }
+        .file-link {
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="dropZone">
+        📤 Drag & Drop images here or<br>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div id="previews"></div>
+
+    <script>
+        const fileMap = new Map();
+        let fileCounter = 1;
+
+        
+        document.getElementById('fileInput').addEventListener('change', handleFiles);
+        
+       
+        const dropZone = document.getElementById('dropZone');
+        dropZone.ondragover = e => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#f0f0f0';
+        };
+        dropZone.ondragleave = () => dropZone.style.backgroundColor = '';
+        dropZone.ondrop = e => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '';
+            handleFiles(e);
+        };
+
+        function handleFiles(e) {
+            const files = e.target.files || e.dataTransfer.files;
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    processFile(file);
+                }
+            }
+        }
+
+        function processFile(file) {
+            const fileId = `img-${Date.now()}-${fileCounter++}`;
+            const objectURL = URL.createObjectURL(file);
+            
+            fileMap.set(fileId, {
+                url: objectURL,
+                file: file,
+                timestamp: Date.now()
+            });
+
+           
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="preview-container">
+                    <img class="preview" src="${objectURL}">
+                    <div class="file-link">
+                        <small>Temporary Link (valid until page close):</small><br>
+                        <input type="text" value="${window.location.href}#${fileId}" readonly>
+                        <button onclick="copyLink('${fileId}')">📋 Copy</button>
+                        <button onclick="revokeLink('${fileId}')">🗑 Delete</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('previews').appendChild(container);
+        }
+
+      
+        window.copyLink = function(fileId) {
+            const input = document.querySelector(`input[value*="${fileId}"]`);
+            input.select();
+            document.execCommand('copy');
+        };
+
+        window.revokeLink = function(fileId) {
+            const fileData = fileMap.get(fileId);
+            if (fileData) {
+                URL.revokeObjectURL(fileData.url);
+                fileMap.delete(fileId);
+                document.querySelector(`input[value*="${fileId}"]`).parentElement.parentElement.remove();
+            }
+        };
+
+       
+        window.addEventListener('hashchange', loadFromHash);
+        window.addEventListener('load', loadFromHash);
+
+        function loadFromHash() {
+            const fileId = window.location.hash.substring(1);
+            if (fileMap.has(fileId)) {
+                const fileData = fileMap.get(fileId);
+                window.open(fileData.url, '_blank');
+            }
+        }
+    </script>
+</body>
+</html>
